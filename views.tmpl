@@ -1,0 +1,439 @@
+package main
+
+import (
+	"fmt"
+	"time"
+)
+
+templ Layout(title string) {
+	<!DOCTYPE html>
+	<html lang="en">
+	<head>
+		<meta charset="UTF-8"/>
+		<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+		<title>{ title }</title>
+		<script src="https://unpkg.com/htmx.org@1.9.10"></script>
+		<script src="https://cdn.tailwindcss.com"></script>
+		<style>
+			.container { max-width: 800px; }
+			.fade-in { animation: fadeIn 0.3s ease-in; }
+			@keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+		</style>
+	</head>
+	<body class="bg-gray-50 min-h-screen">
+		<nav class="bg-white shadow-sm border-b">
+			<div class="container mx-auto px-4 py-4">
+				<div class="flex justify-between items-center">
+					<h1 class="text-xl font-bold text-gray-800">
+						<a href="/" class="hover:text-blue-600">My Blog</a>
+					</h1>
+					<div class="space-x-4">
+						<a href="/" class="text-gray-600 hover:text-blue-600">Home</a>
+						<a href="/posts/new" class="text-gray-600 hover:text-blue-600">Write</a>
+						<a href="/login" class="text-gray-600 hover:text-blue-600">Login</a>
+						<a href="/register" class="text-gray-600 hover:text-blue-600">Register</a>
+					</div>
+				</div>
+			</div>
+		</nav>
+		<main class="container mx-auto px-4 py-8">
+			{ children... }
+		</main>
+		<script>
+			// Store JWT token
+			let authToken = localStorage.getItem('authToken');
+			
+			// Add auth header to HTMX requests
+			document.body.addEventListener('htmx:configRequest', function(evt) {
+				if (authToken) {
+					evt.detail.headers['Authorization'] = 'Bearer ' + authToken;
+				}
+			});
+
+			// Handle auth responses
+			document.body.addEventListener('htmx:afterRequest', function(evt) {
+				if (evt.detail.xhr.status === 401) {
+					localStorage.removeItem('authToken');
+					window.location.href = '/login';
+				}
+			});
+		</script>
+	</body>
+	</html>
+}
+
+templ HomePage(posts []Post) {
+	@Layout("My Blog") {
+		<div class="fade-in">
+			<div class="flex justify-between items-center mb-8">
+				<h2 class="text-3xl font-bold text-gray-900">Latest Posts</h2>
+				<a href="/posts/new" class="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700 transition-colors">
+					Write New Post
+				</a>
+			</div>
+			
+			if len(posts) == 0 {
+				<div class="text-center py-12">
+					<p class="text-gray-500 text-lg mb-4">No posts yet</p>
+					<a href="/posts/new" class="text-blue-600 hover:text-blue-800">Write the first post!</a>
+				</div>
+			} else {
+				<div class="space-y-6">
+					for _, post := range posts {
+						@PostCard(post)
+					}
+				</div>
+			}
+		</div>
+	}
+}
+
+templ PostCard(post Post) {
+	<article class="bg-white rounded-lg shadow-sm border p-6 hover:shadow-md transition-shadow">
+		<div class="flex justify-between items-start mb-3">
+			<h3 class="text-xl font-semibold text-gray-900 hover:text-blue-600">
+				<a href={ templ.URL(fmt.Sprintf("/posts/%d", post.ID)) }>
+					{ post.Title }
+				</a>
+			</h3>
+			<time class="text-sm text-gray-500">
+				{ post.CreatedAt.Format("Jan 2, 2006") }
+			</time>
+		</div>
+		
+		<p class="text-gray-600 text-sm mb-3">
+			by <span class="font-medium">{ post.Author }</span>
+		</p>
+		
+		<div class="text-gray-700 mb-4">
+			if len(post.Content) > 200 {
+				{ post.Content[:200] }...
+			} else {
+				{ post.Content }
+			}
+		</div>
+		
+		<div class="flex justify-between items-center">
+			<a href={ templ.URL(fmt.Sprintf("/posts/%d", post.ID)) } 
+			   class="text-blue-600 hover:text-blue-800 font-medium">
+				Read More →
+			</a>
+			<div class="text-xs text-gray-400">
+				if !post.UpdatedAt.Equal(post.CreatedAt) {
+					Updated { post.UpdatedAt.Format("Jan 2, 2006") }
+				}
+			</div>
+		</div>
+	</article>
+}
+
+templ PostView(post Post, isOwner bool) {
+	@Layout(post.Title) {
+		<div class="fade-in">
+			<article class="bg-white rounded-lg shadow-sm border p-8">
+				<header class="mb-6">
+					<h1 class="text-3xl font-bold text-gray-900 mb-3">{ post.Title }</h1>
+					<div class="flex justify-between items-center text-sm text-gray-500">
+						<div>
+							by <span class="font-medium text-gray-700">{ post.Author }</span>
+							<time class="ml-2">{ post.CreatedAt.Format("January 2, 2006 at 3:04 PM") }</time>
+						</div>
+						if isOwner {
+							<div class="space-x-2">
+								<a href={ templ.URL(fmt.Sprintf("/posts/%d/edit", post.ID)) } 
+								   class="text-blue-600 hover:text-blue-800">Edit</a>
+								<button 
+									hx-delete={ fmt.Sprintf("/api/posts/%d", post.ID) }
+									hx-confirm="Are you sure you want to delete this post?"
+									hx-target="body"
+									hx-swap="outerHTML"
+									onclick="if(confirm('Are you sure?')) { fetch('/api/posts/'+{fmt.Sprintf('%d', post.ID)}, {method:'DELETE', headers:{'Authorization':'Bearer '+localStorage.getItem('authToken')}}).then(()=>window.location.href='/') }"
+									class="text-red-600 hover:text-red-800 cursor-pointer">
+									Delete
+								</button>
+							</div>
+						}
+					</div>
+					if !post.UpdatedAt.Equal(post.CreatedAt) {
+						<p class="text-xs text-gray-400 mt-2">
+							Last updated { post.UpdatedAt.Format("January 2, 2006 at 3:04 PM") }
+						</p>
+					}
+				</header>
+				
+				<div class="prose max-w-none">
+					<div class="whitespace-pre-wrap text-gray-800 leading-relaxed">
+						{ post.Content }
+					</div>
+				</div>
+			</article>
+			
+			<div class="mt-6">
+				<a href="/" class="text-blue-600 hover:text-blue-800">← Back to all posts</a>
+			</div>
+		</div>
+	}
+}
+
+templ RegisterPage() {
+	@Layout("Register") {
+		<div class="max-w-md mx-auto bg-white rounded-lg shadow-sm border p-8">
+			<h2 class="text-2xl font-bold text-gray-900 mb-6 text-center">Create Account</h2>
+			
+			<form hx-post="/api/register" hx-target="#result" hx-swap="innerHTML">
+				<div class="space-y-4">
+					<div>
+						<label for="username" class="block text-sm font-medium text-gray-700 mb-1">
+							Username
+						</label>
+						<input 
+							type="text" 
+							id="username" 
+							name="username" 
+							required
+							class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+						/>
+					</div>
+					
+					<div>
+						<label for="email" class="block text-sm font-medium text-gray-700 mb-1">
+							Email
+						</label>
+						<input 
+							type="email" 
+							id="email" 
+							name="email" 
+							required
+							class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+						/>
+					</div>
+					
+					<div>
+						<label for="password" class="block text-sm font-medium text-gray-700 mb-1">
+							Password
+						</label>
+						<input 
+							type="password" 
+							id="password" 
+							name="password" 
+							required
+							class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+						/>
+					</div>
+				</div>
+				
+				<button 
+					type="submit"
+					class="w-full mt-6 bg-blue-600 text-white py-2 px-4 rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500"
+				>
+					Register
+				</button>
+			</form>
+			
+			<div id="result" class="mt-4"></div>
+			
+			<p class="mt-6 text-center text-sm text-gray-600">
+				Already have an account? 
+				<a href="/login" class="text-blue-600 hover:text-blue-800">Sign in</a>
+			</p>
+		</div>
+	}
+}
+
+templ LoginPage() {
+	@Layout("Login") {
+		<div class="max-w-md mx-auto bg-white rounded-lg shadow-sm border p-8">
+			<h2 class="text-2xl font-bold text-gray-900 mb-6 text-center">Sign In</h2>
+			
+			<form hx-post="/api/login" hx-target="#result" hx-swap="innerHTML">
+				<div class="space-y-4">
+					<div>
+						<label for="username" class="block text-sm font-medium text-gray-700 mb-1">
+							Username
+						</label>
+						<input 
+							type="text" 
+							id="username" 
+							name="username" 
+							required
+							class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+						/>
+					</div>
+					
+					<div>
+						<label for="password" class="block text-sm font-medium text-gray-700 mb-1">
+							Password
+						</label>
+						<input 
+							type="password" 
+							id="password" 
+							name="password" 
+							required
+							class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+						/>
+					</div>
+				</div>
+				
+				<button 
+					type="submit"
+					class="w-full mt-6 bg-blue-600 text-white py-2 px-4 rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500"
+				>
+					Sign In
+				</button>
+			</form>
+			
+			<div id="result" class="mt-4"></div>
+			
+			<p class="mt-6 text-center text-sm text-gray-600">
+				Don't have an account? 
+				<a href="/register" class="text-blue-600 hover:text-blue-800">Register</a>
+			</p>
+		</div>
+		
+		<script>
+			document.body.addEventListener('htmx:afterRequest', function(evt) {
+				if (evt.detail.xhr.status === 200 && evt.detail.pathInfo.requestPath === '/api/login') {
+					const response = JSON.parse(evt.detail.xhr.responseText);
+					localStorage.setItem('authToken', response.token);
+					localStorage.setItem('currentUser', JSON.stringify(response.user));
+					window.location.href = '/';
+				}
+			});
+		</script>
+	}
+}
+
+templ NewPostPage() {
+	@Layout("Write New Post") {
+		<div class="max-w-2xl mx-auto bg-white rounded-lg shadow-sm border p-8">
+			<h2 class="text-2xl font-bold text-gray-900 mb-6">Write New Post</h2>
+			
+			<form hx-post="/api/posts" hx-target="#result" hx-swap="innerHTML">
+				<div class="space-y-6">
+					<div>
+						<label for="title" class="block text-sm font-medium text-gray-700 mb-2">
+							Title
+						</label>
+						<input 
+							type="text" 
+							id="title" 
+							name="title" 
+							required
+							placeholder="Enter your post title..."
+							class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+						/>
+					</div>
+					
+					<div>
+						<label for="content" class="block text-sm font-medium text-gray-700 mb-2">
+							Content
+						</label>
+						<textarea 
+							id="content" 
+							name="content" 
+							required
+							rows="12"
+							placeholder="Write your post content here..."
+							class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 resize-vertical"
+						></textarea>
+					</div>
+				</div>
+				
+				<div class="flex justify-between items-center mt-6">
+					<a href="/" class="text-gray-600 hover:text-gray-800">← Cancel</a>
+					<button 
+						type="submit"
+						class="bg-blue-600 text-white py-2 px-6 rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500"
+					>
+						Publish Post
+					</button>
+				</div>
+			</form>
+			
+			<div id="result" class="mt-4"></div>
+		</div>
+		
+		<script>
+			document.body.addEventListener('htmx:afterRequest', function(evt) {
+				if (evt.detail.xhr.status === 201 && evt.detail.pathInfo.requestPath === '/api/posts') {
+					const response = JSON.parse(evt.detail.xhr.responseText);
+					window.location.href = '/posts/' + response.id;
+				}
+			});
+		</script>
+	}
+}
+
+templ EditPostPage(post Post) {
+	@Layout("Edit Post") {
+		<div class="max-w-2xl mx-auto bg-white rounded-lg shadow-sm border p-8">
+			<h2 class="text-2xl font-bold text-gray-900 mb-6">Edit Post</h2>
+			
+			<form hx-put={ fmt.Sprintf("/api/posts/%d", post.ID) } hx-target="#result" hx-swap="innerHTML">
+				<div class="space-y-6">
+					<div>
+						<label for="title" class="block text-sm font-medium text-gray-700 mb-2">
+							Title
+						</label>
+						<input 
+							type="text" 
+							id="title" 
+							name="title" 
+							required
+							value={ post.Title }
+							class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+						/>
+					</div>
+					
+					<div>
+						<label for="content" class="block text-sm font-medium text-gray-700 mb-2">
+							Content
+						</label>
+						<textarea 
+							id="content" 
+							name="content" 
+							required
+							rows="12"
+							class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 resize-vertical"
+						>{ post.Content }</textarea>
+					</div>
+				</div>
+				
+				<div class="flex justify-between items-center mt-6">
+					<a href={ templ.URL(fmt.Sprintf("/posts/%d", post.ID)) } class="text-gray-600 hover:text-gray-800">
+						← Cancel
+					</a>
+					<button 
+						type="submit"
+						class="bg-blue-600 text-white py-2 px-6 rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500"
+					>
+						Update Post
+					</button>
+				</div>
+			</form>
+			
+			<div id="result" class="mt-4"></div>
+		</div>
+		
+		<script>
+			document.body.addEventListener('htmx:afterRequest', function(evt) {
+				if (evt.detail.xhr.status === 200 && evt.detail.pathInfo.requestPath.includes('/api/posts/')) {
+					const response = JSON.parse(evt.detail.xhr.responseText);
+					window.location.href = '/posts/' + response.id;
+				}
+			});
+		</script>
+	}
+}
+
+templ ErrorMessage(message string) {
+	<div class="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-md">
+		<p class="text-sm">{ message }</p>
+	</div>
+}
+
+templ SuccessMessage(message string) {
+	<div class="bg-green-50 border border-green-200 text-green-700 px-4 py-3 rounded-md">
+		<p class="text-sm">{ message }</p>
+	</div>
+}
