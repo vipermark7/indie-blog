@@ -8,6 +8,7 @@ To run locally, ensure that you've installed Go, and that PostgreSQL is running.
 	"/api/login       ("POST")
 	"/api/post        ("GET")
 	"/api/posts/{id}" ("GET")
+ 	"/"               (homepage, returns HTML)
 
 ## Protected routes
 	"/api/posts       ("POST")
