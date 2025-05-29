@@ -4,6 +4,7 @@ import (
 	"database/sql"
 	"encoding/json"
 	"fmt"
+	"html/template"
 	"log"
 	"net/http"
 	"os"
@@ -242,8 +243,6 @@ func generateToken(userID int, username string) (string, error) {
 	return token.SignedString(jwtSecret)
 }
 
-// Handlers
-
 // User handlers
 func registerHandler(w http.ResponseWriter, r *http.Request) {
 	var user User
@@ -365,6 +364,270 @@ func getPostsHandler(w http.ResponseWriter, r *http.Request) {
 	respondJSON(w, http.StatusOK, posts)
 }
 
+func homeHandler(w http.ResponseWriter, r *http.Request) {
+	// Set content type to HTML
+	w.Header().Set("Content-Type", "text/html; charset=utf-8")
+
+	// HTML template for the home page
+	htmlTemplate := `
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Blog API - Home</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+        }
+        
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        
+        .header {
+            text-align: center;
+            padding: 60px 0;
+            color: white;
+        }
+        
+        .header h1 {
+            font-size: 3.5rem;
+            margin-bottom: 20px;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
+        }
+        
+        .header p {
+            font-size: 1.3rem;
+            opacity: 0.9;
+            margin-bottom: 40px;
+        }
+        
+        .content {
+            background: white;
+            border-radius: 15px;
+            padding: 40px;
+            margin: 40px 0;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+        }
+        
+        .api-endpoints {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 30px;
+            margin-top: 40px;
+        }
+        
+        .endpoint {
+            background: #f8f9fa;
+            padding: 25px;
+            border-radius: 10px;
+            border-left: 5px solid #667eea;
+            transition: transform 0.2s ease;
+        }
+        
+        .endpoint:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+        }
+        
+        .endpoint h3 {
+            color: #667eea;
+            margin-bottom: 15px;
+            font-size: 1.3rem;
+        }
+        
+        .method {
+            display: inline-block;
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 0.8rem;
+            font-weight: bold;
+            margin-bottom: 10px;
+        }
+        
+        .get { background: #28a745; color: white; }
+        .post { background: #007bff; color: white; }
+        .put { background: #ffc107; color: black; }
+        .delete { background: #dc3545; color: white; }
+        
+        .endpoint-url {
+            font-family: 'Courier New', monospace;
+            background: #e9ecef;
+            padding: 8px;
+            border-radius: 5px;
+            margin: 10px 0;
+            word-break: break-all;
+        }
+        
+        .features {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 25px;
+            margin: 40px 0;
+        }
+        
+        .feature {
+            text-align: center;
+            padding: 30px 20px;
+        }
+        
+        .feature-icon {
+            font-size: 3rem;
+            margin-bottom: 20px;
+        }
+        
+        .footer {
+            text-align: center;
+            padding: 30px;
+            color: white;
+            opacity: 0.8;
+        }
+        
+        .status-badge {
+            display: inline-block;
+            background: #28a745;
+            color: white;
+            padding: 5px 15px;
+            border-radius: 20px;
+            font-size: 0.9rem;
+            margin-bottom: 20px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🚀 Blog API</h1>
+            <p>A powerful RESTful API for managing blog posts with PostgreSQL</p>
+            <span class="status-badge">✅ API Status: Online</span>
+        </div>
+        
+        <div class="content">
+            <h2>Welcome to the Blog API</h2>
+            <p>This API provides a complete solution for managing blog posts with features like creating, reading, updating, deleting posts, and managing likes. Built with Go and PostgreSQL for optimal performance and reliability.</p>
+            
+            <div class="features">
+                <div class="feature">
+                    <div class="feature-icon">📝</div>
+                    <h3>Post Management</h3>
+                    <p>Create, read, update, and delete blog posts with ease</p>
+                </div>
+                <div class="feature">
+                    <div class="feature-icon">👍</div>
+                    <h3>Likes System</h3>
+                    <p>Increment and decrement likes on posts with atomic operations</p>
+                </div>
+                <div class="feature">
+                    <div class="feature-icon">🗄️</div>
+                    <h3>PostgreSQL</h3>
+                    <p>Robust database with migrations and data integrity</p>
+                </div>
+                <div class="feature">
+                    <div class="feature-icon">⚡</div>
+                    <h3>High Performance</h3>
+                    <p>Built with Go for speed and concurrent request handling</p>
+                </div>
+            </div>
+            
+            <h2>API Endpoints</h2>
+            <div class="api-endpoints">
+                <div class="endpoint">
+                    <h3>Get All Posts</h3>
+                    <span class="method get">GET</span>
+                    <div class="endpoint-url">/posts</div>
+                    <p>Retrieve all blog posts with their like counts</p>
+                </div>
+                
+                <div class="endpoint">
+                    <h3>Get Single Post</h3>
+                    <span class="method get">GET</span>
+                    <div class="endpoint-url">/posts/{id}</div>
+                    <p>Retrieve a specific post by its ID</p>
+                </div>
+                
+                <div class="endpoint">
+                    <h3>Create Post</h3>
+                    <span class="method post">POST</span>
+                    <div class="endpoint-url">/posts</div>
+                    <p>Create a new blog post with title and content</p>
+                </div>
+                
+                <div class="endpoint">
+                    <h3>Update Post</h3>
+                    <span class="method put">PUT</span>
+                    <div class="endpoint-url">/posts/{id}</div>
+                    <p>Update an existing post's title or content</p>
+                </div>
+                
+                <div class="endpoint">
+                    <h3>Delete Post</h3>
+                    <span class="method delete">DELETE</span>
+                    <div class="endpoint-url">/posts/{id}</div>
+                    <p>Permanently delete a blog post</p>
+                </div>
+                
+                <div class="endpoint">
+                    <h3>Like Post</h3>
+                    <span class="method post">POST</span>
+                    <div class="endpoint-url">/posts/like?id={post_id}</div>
+                    <p>Increment the like count for a specific post</p>
+                </div>
+                
+                <div class="endpoint">
+                    <h3>Unlike Post</h3>
+                    <span class="method post">POST</span>
+                    <div class="endpoint-url">/posts/unlike?id={post_id}</div>
+                    <p>Decrement the like count for a specific post</p>
+                </div>
+            </div>
+            
+            <h2>Getting Started</h2>
+            <p>To interact with this API, you can use tools like <strong>curl</strong>, <strong>Postman</strong>, or any HTTP client. All endpoints return JSON responses (except this home page).</p>
+            
+            <h3>Example Usage:</h3>
+            <div class="endpoint-url">
+                curl -X GET http://localhost:8080/posts<br>
+                curl -X POST http://localhost:8080/posts/like?id=1<br>
+                curl -X POST -H "Content-Type: application/json" -d '{"title":"Hello World","content":"My first post"}' http://localhost:8080/posts
+            </div>
+        </div>
+        
+        <div class="footer">
+            <p>&copy; 2025 Blog API - Built with ❤️ using Go & PostgreSQL</p>
+        </div>
+    </div>
+</body>
+</html>`
+
+	// Parse and execute the template
+	tmpl, err := template.New("home").Parse(htmlTemplate)
+	if err != nil {
+		http.Error(w, "Error parsing template", http.StatusInternalServerError)
+		log.Printf("Template parsing error: %v", err)
+		return
+	}
+
+	err = tmpl.Execute(w, nil)
+	if err != nil {
+		http.Error(w, "Error executing template", http.StatusInternalServerError)
+		log.Printf("Template execution error: %v", err)
+		return
+	}
+}
+
 func getPostHandler(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	postID, err := strconv.Atoi(vars["id"])
@@ -478,17 +741,18 @@ func main() {
 	defer db.Close()
 
 	r := mux.NewRouter()
-
+	r.StrictSlash(true)
 	// Public routes
-	r.HandleFunc("/api/register", registerHandler).Methods("POST")
-	r.HandleFunc("/api/login", loginHandler).Methods("POST")
-	r.HandleFunc("/api/posts", getPostsHandler).Methods("GET")
-	r.HandleFunc("/api/posts/{id}", getPostHandler).Methods("GET")
+	r.HandleFunc("/api/register/", registerHandler).Methods("POST")
+	r.HandleFunc("/api/login/", loginHandler).Methods("POST")
+	r.HandleFunc("/api/posts/", getPostsHandler).Methods("GET")
+	r.HandleFunc("/", homeHandler).
+		r.HandleFunc("/api/posts/{id/}", getPostHandler).Methods("GET")
 
 	// Protected routes
-	r.HandleFunc("/api/posts", authMiddleware(createPostHandler)).Methods("POST")
-	r.HandleFunc("/api/posts/{id}", authMiddleware(updatePostHandler)).Methods("PUT")
-	r.HandleFunc("/api/posts/{id}", authMiddleware(deletePostHandler)).Methods("DELETE")
+	r.HandleFunc("/api/posts/", authMiddleware(createPostHandler)).Methods("POST")
+	r.HandleFunc("/api/posts/{id}/", authMiddleware(updatePostHandler)).Methods("PUT")
+	r.HandleFunc("/api/posts/{id}/", authMiddleware(deletePostHandler)).Methods("DELETE")
 
 	// Add CORS middleware
 	handler := corsMiddleware(r)
