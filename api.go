@@ -746,8 +746,8 @@ func main() {
 	r.HandleFunc("/api/register/", registerHandler).Methods("POST")
 	r.HandleFunc("/api/login/", loginHandler).Methods("POST")
 	r.HandleFunc("/api/posts/", getPostsHandler).Methods("GET")
-	r.HandleFunc("/", homeHandler).
-		r.HandleFunc("/api/posts/{id/}", getPostHandler).Methods("GET")
+	r.HandleFunc("/", homeHandler)
+	r.HandleFunc("/api/posts/{id/}", getPostHandler).Methods("GET")
 
 	// Protected routes
 	r.HandleFunc("/api/posts/", authMiddleware(createPostHandler)).Methods("POST")
