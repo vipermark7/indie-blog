@@ -19,7 +19,6 @@ import (
 	"golang.org/x/crypto/bcrypt"
 )
 
-// Models
 type User struct {
 	ID        int       `json:"id"`
 	Username  string    `json:"username"`
@@ -48,10 +47,8 @@ type LoginResponse struct {
 	User  User   `json:"user"`
 }
 
-// Database
 var db *sql.DB
 
-// JWT Secret - will be loaded from environment
 var jwtSecret []byte
 
 // Claims struct for JWT
@@ -66,7 +63,6 @@ func initDBWithRetry() {
 	maxRetries := 5
 	retryDelay := time.Second * 2
 
-	// Build connection string from environment variables
 	host := os.Getenv("DB_HOST")
 	port := os.Getenv("DB_PORT")
 	user := os.Getenv("DB_USER")
@@ -74,12 +70,10 @@ func initDBWithRetry() {
 	dbname := os.Getenv("DB_NAME")
 	sslmode := os.Getenv("DB_SSLMODE")
 
-	// Validate required environment variables
 	if user == "" || password == "" || dbname == "" {
 		log.Fatal("Required environment variables missing: DB_USER, DB_PASSWORD, DB_NAME")
 	}
 
-	// Set defaults if not provided
 	if host == "" {
 		host = "localhost"
 	}
@@ -199,7 +193,6 @@ func authMiddleware(next http.HandlerFunc) http.HandlerFunc {
 	}
 }
 
-// Utility functions
 func respondJSON(w http.ResponseWriter, status int, data interface{}) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(status)
@@ -244,7 +237,6 @@ func registerUserForm(w http.ResponseWriter, r *http.Request) {
 
 	htmlTemplate := string(html)
 
-	// Parse and execute the template
 	tmpl, err := template.New("home").Parse(htmlTemplate)
 	if err != nil {
 		http.Error(w, "Error parsing template", http.StatusInternalServerError)
